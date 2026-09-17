@@ -3,7 +3,7 @@
 [![CI](https://github.com/LockNStock/b2f/actions/workflows/ci.yml/badge.svg)](https://github.com/LockNStock/b2f/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Dual-Layer Context Cleansing & Re-Execution Acceleration Engine for AI Coding Agents.
+> A Lightweight Workspace Persistence & Context Safeguard CLI for AI Coding Agents.
 
 `b2f` combines **physical snapshot defenses** against IDE-level undo wipes with **deterministic cognitive directive synthesis**, negative constraint extraction, and shell-isolated workspace persistence.
 
