@@ -407,6 +407,28 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
+# Subcommand: purge [--all]
+# -----------------------------------------------------------------------------
+cmd_purge() {
+    local purge_all=false
+    if [ "${1:-}" = "--all" ]; then
+        purge_all=true
+    fi
+
+    if [ -d "${RECOVERY_DIR}" ]; then
+        rm -rf "${RECOVERY_DIR:?}"/*
+        log_info "Purged active recovery directory: ${RECOVERY_DIR}"
+    fi
+
+    if [ "${purge_all}" = true ] && [ -d "${HISTORY_DIR}" ]; then
+        rm -rf "${HISTORY_DIR:?}"/*
+        log_info "Purged historical snapshot archive: ${HISTORY_DIR}"
+    fi
+
+    log_info "Purge completed successfully."
+}
+
+# -----------------------------------------------------------------------------
 # Subcommand: snippet <anchor> [file_paths...]
 # -----------------------------------------------------------------------------
 cmd_snippet() {
@@ -595,6 +617,10 @@ case "${1:-help}" in
         shift
         cmd_prune "$@"
         ;;
+    purge)
+        shift
+        cmd_purge "$@"
+        ;;
     snippet)
         shift
         cmd_snippet "$@"
@@ -617,6 +643,7 @@ Subcommands:
   restore [--cleanup|--wipe]                     Restore files from active manifest and optionally archive/clean slices.
   archive [date_folder]                          Archive intermediate b2f_*.md fragments to b2f/.archive/<date>/.
   prune [max_keep]                               Prune history manifests older than retention limit (default: 30).
+  purge [--all]                                  Wipe recovery directory and optionally historical archive.
   snippet <anchor> [files...]                    Generate deterministic passive recovery command snippet.
   template <anchor> [title]                      Generate standard Golden Re-execution Directive markdown template.
   assemble <b2f_file> [anchor] [files...]        Mechanically assemble mandatory 3-tier Golden Re-execution Prompt block.

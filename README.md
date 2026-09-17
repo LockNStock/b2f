@@ -1,5 +1,8 @@
 # Back to the Future (b2f)
 
+[![CI](https://github.com/LockNStock/b2f/actions/workflows/ci.yml/badge.svg)](https://github.com/LockNStock/b2f/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > Dual-Layer Context Cleansing & Re-Execution Acceleration Engine for AI Coding Agents.
 
 `b2f` combines **physical snapshot defenses** against IDE-level undo wipes with **deterministic cognitive directive synthesis**, negative constraint extraction, and shell-isolated workspace persistence.
@@ -12,12 +15,14 @@
   - **Script Engine Layer**: Physical raw byte backups (`recovery/`), versioned manifest sharding (`history/`), zero-undo native file persistence, bit-level recovery, and fragment archival.
   - **Cognitive Synthesis Layer**: Distills the conversation history into a consolidated **Golden Re-execution Directive** with strict negative constraints and verified invariants.
 - **Changeset Mechanical Safety Net (`--git-diff` / `--auto`)**:
-  - Automatically queries `git status --porcelain` to capture all uncommitted dirty files (modified, staged, untracked) as a physical backup safety net, taking the union with any explicitly specified paths.
+  - Automatically queries `git status -z --porcelain` to capture all uncommitted dirty files (modified, staged, untracked) as a physical backup safety net, taking the union with any explicitly specified paths.
 - **Git Root Dynamic Resolution**:
   - Dynamically anchors to the Git repository root (`git rev-parse --show-toplevel`), preventing directory drift when subcommands are invoked from nested folders.
 - **Oversized Blob & LRU History Protection**:
   - Automatically limits backup file size (`<= 10MB`) to prevent backing up large datasets or binary artifacts.
   - Maintains the 30 most recent manifest snapshots in `~/.gemini/backups/history/`, pruning obsolete versions during cleanup.
+- **Security Purge & Isolation**:
+  - Provides a dedicated `purge` command to wipe active recovery slices and historical backup archives, preventing sensitive code leakage.
 - **Cross-Platform Standalone Python CLI (`b2f_engine.py`)**:
   - 100% Python 3 (>= 3.8) standard library with native support for Linux, macOS, and Windows.
   - Zero third-party package dependencies.
@@ -28,12 +33,18 @@
 
 ```
 b2f/
-├── SKILL.md                 # Antigravity agent skill specification
-├── setup.sh                 # Environment check, symlink deployment & chmod 555 hardening
+├── .github/
+│   ├── workflows/ci.yml     # Multi-OS & multi-version CI/CD matrix
+│   └── CONTRIBUTING.md      # Contribution guidelines
+├── scripts/
+│   ├── b2f_engine.py        # Standalone cross-platform Python CLI engine
+│   └── b2f_helper.sh        # Hardened POSIX Bash wrapper
+├── tests/
+│   └── test_b2f_engine.py   # Unit & integration test suite
+├── LICENSE                  # Full MIT License terms
 ├── README.md                # Project documentation
-└── scripts/
-    ├── b2f_engine.py        # Standalone cross-platform Python CLI engine
-    └── b2f_helper.sh        # Hardened POSIX Bash wrapper
+├── setup.sh                 # Environment check, symlink deployment & permission manager
+└── SKILL.md                 # Antigravity agent skill specification
 ```
 
 ---
@@ -45,10 +56,19 @@ Clone the repository and execute `setup.sh` to configure permissions and install
 ```bash
 git clone https://github.com/LockNStock/b2f.git
 cd b2f
-./setup.sh
-```
 
-`setup.sh` verifies `python3 >= 3.8` and `git`, links the skill to `~/.gemini/config/skills/b2f`, and applies write protection (`chmod 555`) to the executable engines.
+# Standard installation (recommended: chmod 755 for easy git pull)
+./setup.sh
+
+# Strict hardening (optional: chmod 555 write-lock on engines)
+./setup.sh --harden
+
+# Revert write-lock for maintenance
+./setup.sh --unharden
+
+# Uninstall skill link
+./setup.sh --uninstall
+```
 
 ---
 
@@ -82,10 +102,23 @@ python3 scripts/b2f_engine.py archive [date_folder]
 
 # 8. Prune historical manifests
 python3 scripts/b2f_engine.py prune [max_keep]
+
+# 9. Purge sensitive backups and history
+python3 scripts/b2f_engine.py purge [--all]
+```
+
+---
+
+## Testing
+
+Run the automated test suite locally:
+
+```bash
+python3 -m unittest discover -s tests -v
 ```
 
 ---
 
 ## License
 
-MIT License.
+This project is licensed under the terms of the [MIT License](LICENSE).

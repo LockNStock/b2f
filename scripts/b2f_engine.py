@@ -7,6 +7,7 @@ Cross-platform, deterministic implementation of:
   - Native file persistence bypassing IDE undo stacks
   - Bit-accurate restoration and historical archive management
   - Golden Re-execution Prompt assembly and passive recovery snippets
+  - Defensive path parsing and sensitive backup purging
 
 Standard library only: requires Python >= 3.8.
 """
@@ -76,28 +77,39 @@ def get_workspace_root() -> Path:
 
 
 def collect_git_dirty_files(ws_root: Path) -> list[str]:
+    """Safely collects dirty files via null-terminated porcelain git output."""
     dirty_files: list[str] = []
     try:
         proc = subprocess.run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "-z", "--porcelain"],
             cwd=str(ws_root),
             capture_output=True,
-            text=True,
             env=get_git_env(),
             check=False,
         )
         if proc.returncode == 0 and proc.stdout:
-            for raw_line in proc.stdout.splitlines():
-                line = raw_line.strip()
-                if not line or len(line) < 3:
+            raw_entries = proc.stdout.split(b"\0")
+            i = 0
+            while i < len(raw_entries):
+                entry = raw_entries[i]
+                if not entry or len(entry) < 3:
+                    i += 1
                     continue
-                path_part = raw_line[3:].strip()
-                if " -> " in path_part:
-                    path_part = path_part.split(" -> ", 1)[1].strip()
-                path_part = path_part.strip('"')
-                full_path = (ws_root / path_part).resolve()
+
+                status = entry[:2]
+                path_bytes = entry[3:]
+                path_str = path_bytes.decode("utf-8", errors="replace")
+
+                # In case of rename/copy, next null element contains the target path
+                if b"R" in status or b"C" in status:
+                    if i + 1 < len(raw_entries):
+                        i += 1
+                        path_str = raw_entries[i].decode("utf-8", errors="replace")
+
+                full_path = (ws_root / path_str).resolve()
                 if full_path.is_file():
                     dirty_files.append(str(full_path))
+                i += 1
     except OSError:
         pass
     return dirty_files
@@ -411,6 +423,41 @@ def cmd_prune(args: argparse.Namespace) -> int:
 
 
 # -----------------------------------------------------------------------------
+# Subcommand: purge
+# -----------------------------------------------------------------------------
+def cmd_purge(args: argparse.Namespace) -> int:
+    """Security-focused command to wipe sensitive cached snapshots and history."""
+    purge_all = args.all
+    recovery_dir = get_recovery_dir()
+    history_dir = get_history_dir()
+
+    if recovery_dir.exists():
+        for p in recovery_dir.iterdir():
+            try:
+                if p.is_dir():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+            except OSError as e:
+                log_warn(f"Failed to remove {p}: {e}")
+        log_info(f"Purged active recovery directory: {recovery_dir}")
+
+    if purge_all and history_dir.exists():
+        for p in history_dir.iterdir():
+            try:
+                if p.is_dir():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+            except OSError as e:
+                log_warn(f"Failed to remove {p}: {e}")
+        log_info(f"Purged historical snapshot archive: {history_dir}")
+
+    log_info("Purge operation completed successfully.")
+    return 0
+
+
+# -----------------------------------------------------------------------------
 # Subcommand: snippet
 # -----------------------------------------------------------------------------
 def cmd_snippet(args: argparse.Namespace) -> int:
@@ -544,7 +591,6 @@ def cmd_assemble(args: argparse.Namespace) -> int:
 
     # Assemble recovery snippet
     snippet_ns = argparse.Namespace(anchor=args.anchor, files=args.files or [])
-    # Capture stdout
     import io
 
     old_stdout = sys.stdout
@@ -640,6 +686,17 @@ def main() -> int:
         help="Number of snapshots to retain (default: 30)",
     )
     p_prune.set_defaults(func=cmd_prune)
+
+    # purge
+    p_purge = subparsers.add_parser(
+        "purge", help="Security wipe of cached snapshots and history"
+    )
+    p_purge.add_argument(
+        "--all",
+        action="store_true",
+        help="Wipe both active recovery and historical snapshots",
+    )
+    p_purge.set_defaults(func=cmd_purge)
 
     # snippet
     p_snippet = subparsers.add_parser(
